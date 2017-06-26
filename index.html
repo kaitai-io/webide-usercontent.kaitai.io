@@ -2,7 +2,79 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>User Content (Kaitai WebIDE)</title>    
+    <title>User Content (Kaitai WebIDE)</title>
+    <script id="sharedCode" type="javascript/worker">
+        function handleMsg(methods, request, responseHandler){
+            function respond(success, response) {
+                response = response || {};
+                response.messageId = request.messageId;
+                response.success = success;
+                responseHandler(response);
+            }
+            
+            try {
+                if (!methods.hasOwnProperty(request.method))
+                    throw new Error(`Unknown method: ${request.method}`);
+                    
+                if (!request.arguments)
+                    throw new Error(`No arguments were passed (use request.arguments).`);
+
+                Promise.resolve(methods[request.method](...request.arguments))
+                    .then(result => respond(true, { result: result }))
+                    .catch(e => respond(false, { error: e.toString() }));
+            } catch(e){
+                respond(false, { error: e.toString() });
+            }
+        }
+    </script>
+    <script id="workerCode" type="javascript/worker">
+        var methods = {
+            loadScript(src){ importScripts(src); },
+            eval(code){ return eval(code); }
+        };
+        
+        self.onmessage = e => handleMsg(methods, e.data, response => this.postMessage(response));
+    </script>
+    <script>
+        var methods = {
+            loadScript(src){
+                return new Promise((resolve, reject) => {
+                    let script = document.createElement("script");
+                    script.onload = e => resolve();
+                    script.onerror = e => reject();
+                    script.src = e.data.src;
+                    document.head.appendChild(script);
+                });
+            },            
+            eval(code){ return eval(code); }
+        }
+        
+        var sharedCode = document.querySelector('#sharedCode').textContent;
+        eval(sharedCode);
+        var workerCode = sharedCode + document.querySelector('#workerCode').textContent;
+        var worker = new Worker(window.URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" })));
+        
+        var responseCallbacks = {};
+        worker.onmessage = function(e) {
+            responseCallbacks[e.data.messageId](e.data);
+            delete responseCallbacks[e.data.messageId];
+        }
+
+        window.addEventListener("message", e => {
+            if (e.origin !== "https://ide.kaitai.io" && e.origin !== "http://localhost:8000")
+                return;
+                
+            let request = e.data;
+            request.messageId = request.messageId || Math.random();
+            
+            if (request.useWorker){
+                responseCallbacks[request.messageId] = response => e.source.postMessage(response, e.origin);
+                worker.postMessage(request);
+            }
+            else
+                handleMsg(methods, request, response => e.source.postMessage(response, e.origin));
+        });
+    </script>
 </head>
 <body>
 </body>
