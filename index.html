@@ -12,6 +12,15 @@
                 responseHandler(response);
             }
             
+            function success(result){
+                respond(true, { result: result });
+            }
+            
+            function error(error){
+                console.log('Sandbox error', error);
+                respond(false, { error: error.toString() });
+            }
+            
             try {
                 if (!methods.hasOwnProperty(request.method))
                     throw new Error(`Unknown method: ${request.method}`);
@@ -19,17 +28,20 @@
                 if (!request.arguments)
                     throw new Error(`No arguments were passed (use request.arguments).`);
 
-                Promise.resolve(methods[request.method](...request.arguments))
-                    .then(result => respond(true, { result: result }))
-                    .catch(e => respond(false, { error: e.toString() }));
+                Promise.resolve(methods[request.method](...request.arguments)).then(success, error);
             } catch(e){
-                respond(false, { error: e.toString() });
+                error(e);
             }
         }
     </script>
     <script id="workerCode" type="javascript/worker">
+        var currentScriptSrc = null;
         var methods = {
-            loadScript(src){ importScripts(src); },
+            loadScript(src){
+                currentScriptSrc = src;
+                importScripts(src);
+            },
+            
             eval(code){ return eval(code); }
         };
         
@@ -46,7 +58,8 @@
                     script.src = e.data.src;
                     document.head.appendChild(script);
                 });
-            },            
+            },
+            
             eval(code){ return eval(code); }
         }
         
