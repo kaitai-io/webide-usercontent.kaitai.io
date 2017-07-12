@@ -19,15 +19,15 @@
             function error(error){
                 console.log('[sandbox] error', error);
                 
-                var errorObj = null;
+                var errorAsJson = null, errorClass = null;
                 try {
-                    errorObj = JSON.stringify(error);
-                    errorObj["$errorClass"] = error.constructor.name;
+                    errorAsJson = JSON.stringify(error);
+                    errorClass = error.constructor.name;
                 } catch(e) {
                     console.log('[sandbox] Could not serialize error.', e);
                 }
                 
-                respond(false, { error: { asText: error.toString(), asJson: JSON.stringify(errorObj) } });
+                respond(false, { error: { class: errorClass, asText: error.toString(), asJson: errorAsJson } });
             }
             
             try {
