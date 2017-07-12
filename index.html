@@ -17,8 +17,17 @@
             }
             
             function error(error){
-                console.log('Sandbox error', error);
-                respond(false, { error: error.toString() });
+                console.log('[sandbox] error', error);
+                
+                var errorObj = null;
+                try {
+                    errorObj = JSON.stringify(error);
+                    errorObj["$errorClass"] = error.constructor.name;
+                } catch(e) {
+                    console.log('[sandbox] Could not serialize error.', e);
+                }
+                
+                respond(false, { text: error.toString(), value: errorObj });
             }
             
             try {
