@@ -27,7 +27,7 @@
                     console.log('[sandbox] Could not serialize error.', e);
                 }
                 
-                respond(false, { text: error.toString(), value: errorObj });
+                respond(false, { error: { text: error.toString(), value: errorObj } });
             }
             
             try {
